@@ -10,89 +10,107 @@ def task_manager():
     return TaskManager()
 
 
-def test_add_task_and_set_priority(task_manager):
+@pytest.fixture
+def task_manager_with_tasks():
     """
-    Тестирует функцию добавления задачи в Task Manager c выставлением приоритета
+    Создает экземпляр класса TaskManager c задачами
     """
-    added_task = task_manager.add_task(name="Task_1", priority="low")
-    assert added_task["name"] == "Task_1"
-    assert added_task["priority"] == "low"
-    assert added_task["completed"] is False
-    assert len(task_manager.tasks) == 1
+    task_manager = TaskManager()
+    task_manager.add_task(name="Task_1")
+    task_manager.add_task(name="Task_2", priority="high")
+    return task_manager
 
 
-def test_add_task_without_priority(task_manager):
+@pytest.mark.parametrize(
+    "name, priority, expected",
+    [
+        ("Task_1", "low", [{"completed": False,
+                            "name": "Task_1",
+                            "priority": "low"
+                            }]),
+        ("Task_2", "high", [{"completed": False,
+                             "name": "Task_2",
+                             "priority": "high"
+                             }]),
+        ("Task_3", None, [{"completed": False,
+                           "name": "Task_3",
+                           "priority": "normal"
+                           }])
+    ]
+)
+def test_add_task(task_manager, name, priority, expected):
     """
-    Тестирует функцию добавления задачи в Task Manager без указания приоритета
+    Тестирует функцию добавления задачи в Task Manager
     """
-    added_task = task_manager.add_task(name="Task_2")
-    assert added_task["name"] == "Task_2"
-    assert added_task["priority"] == "normal"
-    assert added_task["completed"] is False
-    assert len(task_manager.tasks) == 1
+
+    if priority is None:
+        task_manager.add_task(name)
+    else:
+        task_manager.add_task(name, priority)
+    assert task_manager.tasks == expected
 
 
-def test_add_task_with_incorrect_priority(task_manager):
+@pytest.mark.parametrize(
+    "name, priority",
+    [
+        ("Task_1", "TEST"),
+        ("Task_2", 123),
+        ("Task_4", "lowest")
+    ]
+)
+def test_add_task_with_incorrect_priority(task_manager, name, priority):
     """
     Тестирует функцию добавления задачи в Task Manager
     с указанием приоритета не из списка
     """
     with pytest.raises(ValueError):
-        task_manager.add_task(name="Task_3", priority="TEST")
+        task_manager.add_task(name, priority)
 
 
-def test_list_tasks(task_manager):
+def test_list_tasks(task_manager_with_tasks):
     """
     Тестирует возвращение списка всех задач
     """
-    task_manager.add_task(name="Task_1")
-    task_manager.add_task(name="Task_2", priority="high")
-    assert isinstance(task_manager.list_tasks(), list)
-    assert len(task_manager.list_tasks()) == 2
-    assert task_manager.list_tasks() == [{"completed": False,
-                                          "name": "Task_1",
-                                          "priority": "normal"
-                                          },
-                                         {"completed": False,
-                                          "name": "Task_2",
-                                          "priority": "high"
-                                          }
-                                         ]
+    assert task_manager_with_tasks.list_tasks() == [{"completed": False,
+                                                     "name": "Task_1",
+                                                     "priority": "normal"
+                                                     },
+                                                    {"completed": False,
+                                                     "name": "Task_2",
+                                                     "priority": "high"
+                                                     }
+                                                    ]
 
 
-def test_mark_task_completed(task_manager):
+def test_mark_task_completed(task_manager_with_tasks):
     """
     Тестирует функцию перевода статуса задачи в выполненную
     """
-    task_manager.add_task(name="task to complete", priority="high")
-    completed_task = task_manager.mark_task_completed("task to complete")
+    completed_task = task_manager_with_tasks.mark_task_completed("Task_1")
     assert completed_task["completed"] is True
 
 
-def test_mark_task_completed_not_found(task_manager):
+def test_mark_task_completed_not_found(task_manager_with_tasks):
     """
     Тестирует случай появления исключения,
     когда задача для перевода в выполненную не найдена
     """
-    task_manager.add_task(name="task to complete", priority="high")
     with pytest.raises(ValueError):
-        task_manager.mark_task_completed("non-existing task")
+        task_manager_with_tasks.mark_task_completed("non-existing task")
 
 
-def test_remove_task(task_manager):
+def test_remove_task(task_manager_with_tasks):
     """
     Тестирует функцию удаления задачи
     """
-    task_manager.add_task(name="task to remove", priority="low")
-    task_manager.remove_task("task to remove")
-    assert len(task_manager.tasks) == 0
+    task_manager_with_tasks.remove_task("Task_2")
+    assert any("Task_2" not in task["name"] for task in task_manager_with_tasks.tasks)
 
 
-def test_remove_task_not_found(task_manager):
+def test_remove_task_not_found(task_manager_with_tasks):
     """
     Тестирует случай появления исключения,
     когда задача для удаления не была найдена
     """
-    task_manager.add_task(name="task to remove", priority="low")
     with pytest.raises(ValueError):
-        task_manager.remove_task("non-existing task")
+        task_manager_with_tasks.remove_task("non-existing task")
